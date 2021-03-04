@@ -1,0 +1,7 @@
+#ifndef LIDAR_LOCALIZATION_GLOBAL_DEFINATION_H_IN_
+#define LIDAR_LOCALIZATION_GLOBAL_DEFINATION_H_IN_
+
+#include <string>
+
+const std::string WORK_SPACE_PATH = "@WORK_SPACE_PATH@";
+#endif

@@ -1,0 +1,20 @@
+filter_method: ESKF
+
+earth:
+  rotation_speed: 7.272205216e-05
+  gravity: 9.79484197226504
+  latitude: 32
+  longtitude: 120
+
+covariance:
+  prior:
+    posi: 1.0e-4
+    vel: 1.0e-4
+    ori: 1.0e-6
+    epsilon: 1.0e-6
+    delta: 1.0e-6
+  process:
+    gyro: 1.0e-5
+    accel: 1.0e-4
+  measurement:
+    posi: 10
