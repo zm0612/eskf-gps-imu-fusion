@@ -1,6 +1,11 @@
 ESKF融合IMU与GPS数据
 
+
 ![融合IMU数据之后的GPS轨迹效果](https://img-blog.csdnimg.cn/20210304150232490.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L3UwMTEzNDE4NTY=,size_16,color_FFFFFF,t_70#pic_center)
+
+绿色轨迹：ground truth
+蓝色轨迹：fuse IMU and GPS
+红色轨迹：GPS
 
 实现方法请参考我的博客[《【附源码+代码注释】误差状态卡尔曼滤波(error-state Kalman Filter)实现GPS+IMU融合，EKF ESKF GPS+IMU》](https://blog.csdn.net/u011341856/article/details/114262451)
 
