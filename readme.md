@@ -1,3 +1,14 @@
+### 2021年9月17日更新：
+有同学反应代码在编译和运行的过程中有一些bug，由于我最近工作有些忙，我先给出一个简单的办法补救一下，后续闲下来我再好好测试和修复，实在不好意思！
+
+**编译报错：GeographicLib/LocalCartesian.hpp：没有那个文件或目录**
+原因：我的cmakelists.txt中的文件路径设置错误了。
+解决办法：最简单的解决办法就是安装Geographic库`sudo apt-get install libgeographic-dev`，然后重新编译问题就解决了。
+
+**在Ubuntu20.04系统下可以成功编译，但是运行有问题**
+解决办法：该问题并不是每一个Ubuntu20.04系统都会出现，看起来像是个别现象。我的开发环境是Ubuntu 18.04！
+
+
 ESKF融合IMU与GPS数据
 
 
