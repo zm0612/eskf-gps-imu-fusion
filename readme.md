@@ -64,4 +64,4 @@ cd eskf-gps-imu-fusion/data
 evo_traj kitti fused.txt gt.txt measured.txt -p
 ```
 
-> 需要安装evo，可以参考我的博客中的介绍
+> 需要安装evo，可以参考我的博客中的介绍：https://blog.csdn.net/u011341856/article/details/104594392?spm=1001.2014.3001.5501
