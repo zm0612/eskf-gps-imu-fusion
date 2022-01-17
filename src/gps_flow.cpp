@@ -9,21 +9,21 @@
 
 GeographicLib::LocalCartesian GPSFlow::geo_converter_{32.0, 120.0, 0.0};
 
-Eigen::Vector3d GPSFlow::LLA2NED(const Eigen::Vector3d &lla) {
-    Eigen::Vector3d ned;
-    geo_converter_.Forward(lla[0], lla[1], lla[2], ned[0], ned[1], ned[2]);
-
-    return ned;
+Eigen::Vector3d GPSFlow::LLA2ENU(const Eigen::Vector3d &lla) {
+    Eigen::Vector3d enu;
+    //lla -> ENU frame
+    geo_converter_.Forward(lla[0], lla[1], lla[2], enu[0], enu[1], enu[2]);
+    return enu;
 }
 
-void GPSFlow::LLA2NED(GPSData &gps_data) {
+void GPSFlow::LLA2ENU(GPSData &gps_data) {
     //lla -> ENU frame
     geo_converter_.Forward(gps_data.position_lla.x(),
                            gps_data.position_lla.y(),
                            gps_data.position_lla.z(),
-                           gps_data.position_ned.x(),
-                           gps_data.position_ned.y(),
-                           gps_data.position_ned.z());
+                           gps_data.position.x(),
+                           gps_data.position.y(),
+                           gps_data.position.z());
 }
 
 bool GPSFlow::ReadGPSData(const std::string &path, std::vector<GPSData>& gps_data_vec,const int skip_rows) {
@@ -104,7 +104,7 @@ bool GPSFlow::ReadGPSData(const std::string &path, std::vector<GPSData>& gps_dat
 
         TransformCoordinate(gps_data.true_velocity);
 
-        LLA2NED(gps_data);
+        LLA2ENU(gps_data);
 
         gps_data_vec.emplace_back(gps_data);
     }
@@ -194,7 +194,7 @@ bool GPSFlow::ReadGPSData(const std::string &path, std::deque<GPSData>& gps_data
 
         TransformCoordinate(gps_data.true_velocity);
 
-        LLA2NED(gps_data);
+        LLA2ENU(gps_data);
 
         gps_data_vec.emplace_back(gps_data);
     }

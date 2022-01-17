@@ -10,10 +10,11 @@
 inline void TransformCoordinate(Eigen::Vector3d& vec){
     double kDegree2Radian = M_PI / 180.0;
 
-    Eigen::Quaterniond Q_b_w = Eigen::AngleAxisd(90 * kDegree2Radian, Eigen::Vector3d::UnitZ()) *
-                               Eigen::AngleAxisd(0 * kDegree2Radian, Eigen::Vector3d::UnitY()) *
-                               Eigen::AngleAxisd(180 * kDegree2Radian, Eigen::Vector3d::UnitX());
+    Eigen::Quaterniond Q_neu_end =
+            Eigen::AngleAxisd(90 * kDegree2Radian, Eigen::Vector3d::UnitZ()) *
+            Eigen::AngleAxisd(0 * kDegree2Radian, Eigen::Vector3d::UnitY()) *
+            Eigen::AngleAxisd(180 * kDegree2Radian, Eigen::Vector3d::UnitX());
 
-    vec = Q_b_w.inverse() * vec;
+    vec = Q_neu_end * vec;
 }
 #endif //GPS_IMU_FUSION_TOOL_H

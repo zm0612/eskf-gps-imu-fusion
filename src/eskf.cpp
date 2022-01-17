@@ -70,9 +70,9 @@ bool ESKF::Init(const GPSData &curr_gps_data, const IMUData &curr_imu_data) {
     init_velocity_ = curr_gps_data.true_velocity;
     velocity_ = init_velocity_;
 
-    Eigen::Quaterniond Q = Eigen::AngleAxisd(90 * kDegree2Radian, Eigen::Vector3d::UnitZ()) *
+    Eigen::Quaterniond Q = Eigen::AngleAxisd(0 * kDegree2Radian, Eigen::Vector3d::UnitZ()) *
                            Eigen::AngleAxisd(0 * kDegree2Radian, Eigen::Vector3d::UnitY()) *
-                           Eigen::AngleAxisd(180 * kDegree2Radian, Eigen::Vector3d::UnitX());
+                           Eigen::AngleAxisd(0 * kDegree2Radian, Eigen::Vector3d::UnitX());
     init_pose_.block<3,3>(0,0) = Q.toRotationMatrix();
     pose_ = init_pose_;
 
@@ -93,7 +93,7 @@ void ESKF::GetFGY(TypeMatrixF &F, TypeMatrixG &G, TypeVectorY &Y) {
 bool ESKF::Correct(const GPSData &curr_gps_data) {
     curr_gps_data_ = curr_gps_data;
 
-    Y_ = pose_.block<3,1>(0,3) - curr_gps_data.position_ned;
+    Y_ = curr_gps_data.position - pose_.block<3,1>(0,3);
 
     K_ = P_ * G_.transpose() * (G_ * P_ * G_.transpose() + C_ * R_ * C_.transpose()).inverse();
 
@@ -126,10 +126,10 @@ bool ESKF::UpdateErrorState(double t, const Eigen::Vector3d &accel) {
     Eigen::Matrix3d F_23 = BuildSkewMatrix(accel);
 
     F_.block<3,3>(INDEX_STATE_VEL, INDEX_STATE_ORI) = F_23;
-    F_.block<3,3>(INDEX_STATE_VEL, INDEX_STATE_ACC_BIAS) = pose_.block<3,3>(0,0);
-    F_.block<3,3>(INDEX_STATE_ORI, INDEX_STATE_GYRO_BIAS) = -pose_.block<3,3>(0,0);
-    B_.block<3,3>(INDEX_STATE_VEL, 3) = pose_.block<3,3>(0,0);
-    B_.block<3,3>(INDEX_STATE_ORI, 0) = -pose_.block<3,3>(0,0);
+    F_.block<3,3>(INDEX_STATE_VEL, INDEX_STATE_ACC_BIAS) = -pose_.block<3,3>(0,0);
+    F_.block<3,3>(INDEX_STATE_ORI, INDEX_STATE_GYRO_BIAS) = pose_.block<3,3>(0,0);
+    B_.block<3,3>(INDEX_STATE_VEL, 3) = -pose_.block<3,3>(0,0);
+    B_.block<3,3>(INDEX_STATE_ORI, 0) = pose_.block<3,3>(0,0);
 
     TypeMatrixF Fk = TypeMatrixF::Identity() + F_ * t;
     TypeMatrixB Bk = B_ * t;
@@ -174,8 +174,8 @@ bool ESKF::ComputeAngularDelta(Eigen::Vector3d &angular_delta) {
 
     Eigen::Vector3d last_angular_vel = last_imu_data.angle_velocity;
 
-    Eigen::Vector3d curr_unbias_angular_vel = curr_angular_vel;
-    Eigen::Vector3d last_unbias_angular_vel = last_angular_vel;
+    Eigen::Vector3d curr_unbias_angular_vel = curr_angular_vel - gyro_bias_;
+    Eigen::Vector3d last_unbias_angular_vel = last_angular_vel - gyro_bias_;
 
     angular_delta = 0.5 * (curr_unbias_angular_vel + last_unbias_angular_vel) * delta_t;
 
@@ -218,9 +218,10 @@ bool ESKF::ComputeOrientation(const Eigen::Vector3d &angular_delta,
     return true;
 }
 
-bool ESKF::ComputeVelocity(Eigen::Vector3d &curr_vel, Eigen::Vector3d& last_vel,
-                                             const Eigen::Matrix3d &curr_R,
-                                             const Eigen::Matrix3d last_R) {
+bool ESKF::ComputeVelocity(Eigen::Vector3d &curr_vel,
+                           Eigen::Vector3d& last_vel,
+                           const Eigen::Matrix3d &curr_R,
+                           const Eigen::Matrix3d last_R) {
     IMUData curr_imu_data = imu_data_buff_.at(1);
     IMUData last_imu_data = imu_data_buff_.at(0);
     double delta_t = curr_imu_data.time - last_imu_data.time;
@@ -243,8 +244,7 @@ bool ESKF::ComputeVelocity(Eigen::Vector3d &curr_vel, Eigen::Vector3d& last_vel,
 }
 
 Eigen::Vector3d ESKF::GetUnbiasAccel(const Eigen::Vector3d &accel) {
-//    return accel - accel_bias_ + g_;
-    return accel + g_;
+    return accel - accel_bias_ + g_;
 }
 
 bool ESKF::ComputePosition(const Eigen::Vector3d& curr_vel, const Eigen::Vector3d& last_vel){
@@ -260,14 +260,17 @@ void ESKF::ResetState() {
 }
 
 void ESKF::EliminateError() {
-    pose_.block<3,1>(0,3) = pose_.block<3,1>(0,3) - X_.block<3,1>(INDEX_STATE_POSI, 0);
+    pose_.block<3,1>(0,3) = pose_.block<3,1>(0,3) + X_.block<3,1>(INDEX_STATE_POSI, 0);
 
-    velocity_ = velocity_ - X_.block<3,1>(INDEX_STATE_VEL, 0);
-    Eigen::Matrix3d C_nn = Sophus::SO3d::exp(X_.block<3,1>(INDEX_STATE_ORI, 0)).matrix();
+    velocity_ = velocity_ + X_.block<3,1>(INDEX_STATE_VEL, 0);
+    Eigen::Matrix3d C_nn = Sophus::SO3d::exp(-X_.block<3,1>(INDEX_STATE_ORI, 0)).matrix();
     pose_.block<3,3>(0,0) = C_nn * pose_.block<3,3>(0,0);
+    Eigen::Quaterniond q(pose_.block<3,3>(0,0));
+    q.normalize();
+    pose_.block<3,3>(0,0) = q.toRotationMatrix();
 
-    gyro_bias_ = gyro_bias_ - X_.block<3,1>(INDEX_STATE_GYRO_BIAS, 0);
-    accel_bias_ = accel_bias_ - X_.block<3,1>(INDEX_STATE_ACC_BIAS, 0);
+    gyro_bias_ = gyro_bias_ + X_.block<3,1>(INDEX_STATE_GYRO_BIAS, 0);
+    accel_bias_ = accel_bias_ + X_.block<3,1>(INDEX_STATE_ACC_BIAS, 0);
 }
 
 Eigen::Matrix4d ESKF::GetPose() const {

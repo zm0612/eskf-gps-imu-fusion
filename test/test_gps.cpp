@@ -21,7 +21,7 @@ int main(){
         std::cout << "\nindex: " << i << std::endl;
         std::cout << "time:" << std::to_string(gps_data_buff.at(i).time) << std::endl;
         std::cout << "posi(LLA): " << gps_data_buff.at(i).position_lla.transpose() << std::endl;
-        std::cout << "posi(NED): " << gps_data_buff.at(i).position_ned.transpose() << std::endl;
+        std::cout << "posi(ENU): " << gps_data_buff.at(i).position.transpose() << std::endl;
         std::cout << "velo: " << gps_data_buff.at(i).velocity.transpose() << std::endl;
         std::cout << "true velo" << gps_data_buff.at(i).true_velocity.transpose() << std::endl;
     }

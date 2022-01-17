@@ -98,9 +98,9 @@ bool ESKFFlow::Run() {
             eskf_ptr_->Correct(curr_gps_data_);
 
             SavePose(fused_file, eskf_ptr_->GetPose());
-            SavePose(measured_file,Vector2Matrix(curr_gps_data_.position_ned));
+            SavePose(measured_file,Vector2Matrix(curr_gps_data_.position));
 
-            SavePose(gt_file, Vector2Matrix(GPSFlow::LLA2NED(curr_gps_data_.true_position_lla)));
+            SavePose(gt_file, Vector2Matrix(GPSFlow::LLA2ENU(curr_gps_data_.true_position_lla)));
             gps_data_buff_.pop_front();
         }
 

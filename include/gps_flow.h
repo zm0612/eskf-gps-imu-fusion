@@ -15,9 +15,9 @@ class GPSFlow{
 public:
     GPSFlow() = default;
 
-    static void LLA2NED(GPSData& gps_data);
+    static void LLA2ENU(GPSData& gps_data);
 
-    static Eigen::Vector3d LLA2NED(const Eigen::Vector3d& lla);
+    static Eigen::Vector3d LLA2ENU(const Eigen::Vector3d& lla);
 
     static bool ReadGPSData(const std::string& path, std::vector<GPSData>& gps_data_vec,const int skip_rows=1);
 

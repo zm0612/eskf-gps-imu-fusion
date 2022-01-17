@@ -12,9 +12,9 @@ class GPSData{
 public:
     GPSData() = default;
 
-    Eigen::Vector3d position_lla = Eigen::Vector3d::Zero();//LLA
-    Eigen::Vector3d velocity = Eigen::Vector3d::Zero();//NED
-    Eigen::Vector3d position_ned = Eigen::Vector3d::Zero();
+    Eigen::Vector3d position_lla = Eigen::Vector3d::Zero(); // LLA
+    Eigen::Vector3d velocity = Eigen::Vector3d::Zero();     // ENU
+    Eigen::Vector3d position = Eigen::Vector3d::Zero();     // ENU
 
     Eigen::Vector3d true_velocity = Eigen::Vector3d::Zero();
     Eigen::Vector3d true_position_lla = Eigen::Vector3d::Zero();
