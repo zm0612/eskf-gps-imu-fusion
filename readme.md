@@ -38,6 +38,11 @@ Yaml
 sudo apt-get install libyaml-cpp-dev
 ```
 
+Glog
+```shell
+sudo apt-get install libgoogle-glog-dev
+```
+
 ## 2. 编译
 
 ```shell
