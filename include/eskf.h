@@ -7,14 +7,16 @@
 
 #include "imu_data.h"
 #include "gps_data.h"
+#include "config_parameters.h"
 
-#include <deque>
-#include <yaml-cpp/yaml.h>
+#include <glog/logging.h>
 #include <eigen3/Eigen/Dense>
 
-class ESKF {
+#include <deque>
+
+class ErrorStateKalmanFilter {
 public:
-    ESKF(const YAML::Node &node);
+    explicit ErrorStateKalmanFilter(const ConfigParameters &config_parameters);
 
     /*!
      * 用于ESKF滤波器的初始化，设置初始位姿，初始速度
@@ -25,7 +27,7 @@ public:
     bool Init(const GPSData &curr_gps_data, const IMUData &curr_imu_data);
 
     /*!
-     * 滤波器的预测，对应卡尔曼滤波器的前两个公式
+     * IMU姿态解算，以及滤波器的预测步的构建，对应卡尔曼滤波器的前两个公式
      * @param curr_imu_data
      * @return
      */
@@ -40,7 +42,7 @@ public:
 
     Eigen::Matrix4d GetPose() const;
 
-    Eigen::Vector3d GetVelocity(){
+    Eigen::Vector3d GetVelocity() {
         return velocity_;
     }
 
@@ -49,25 +51,26 @@ private:
 
     void SetCovarianceR(double posi_noise_cov);
 
-    void SetCovarianceP(double posi_noise, double velo_noise, double ori_noise,
+    void SetCovarianceP(double posi_noise, double velocity_noise, double ori_noise,
                         double gyro_noise, double accel_noise);
 
     /*!
      * 通过IMU计算位姿和速度
      * @return
      */
-    bool UpdateOdomEstimation();
+    void UpdateOdomEstimation(const Eigen::Vector3d &w_in);
 
-    bool UpdateErrorState(double t, const Eigen::Vector3d &accel);
+    void UpdateErrorState(double t, const Eigen::Vector3d &accel, const Eigen::Vector3d &w_in_n);
 
-    bool ComputeAngularDelta(Eigen::Vector3d &angular_delta);
+    Eigen::Vector3d ComputeDeltaRotation(const IMUData &imu_data_0, const IMUData &imu_data_1);
 
     /*!
      * 计算地球转动给导航系带来的变换
+     * note: 对于普通消费级IMU可以忽略此项
      * @param R_nm_nm_1
      * @return
      */
-    bool ComputeEarthTranform(Eigen::Matrix3d &R_nm_nm_1);
+    Eigen::Vector3d ComputeNavigationFrameAngularVelocity();
 
     /*!
      * 通过IMU计算当前姿态
@@ -77,17 +80,17 @@ private:
      * @param last_R
      * @return
      */
-    bool ComputeOrientation(const Eigen::Vector3d &angular_delta,
-                            const Eigen::Matrix3d R_nm_nm_1,
+    void ComputeOrientation(const Eigen::Vector3d &angular_delta,
+                            const Eigen::Matrix3d &R_nm_nm_1,
                             Eigen::Matrix3d &curr_R,
                             Eigen::Matrix3d &last_R);
 
-    bool ComputeVelocity(Eigen::Vector3d &curr_vel,
-                         Eigen::Vector3d &last_vel,
-                         const Eigen::Matrix3d &curr_R,
-                         const Eigen::Matrix3d last_R);
+    void ComputeVelocity(const Eigen::Matrix3d &R_0, const Eigen::Matrix3d &R_1, const IMUData &imu_data_0,
+                         const IMUData &imu_data_1, Eigen::Vector3d &last_vel, Eigen::Vector3d &curr_vel);
 
-    Eigen::Vector3d GetUnbiasAccel(const Eigen::Vector3d &accel);
+    Eigen::Vector3d ComputeUnbiasAccel(const Eigen::Vector3d &accel);
+
+    Eigen::Vector3d ComputeUnbiasGyro(const Eigen::Vector3d &gyro);
 
     /*!
      * 通过imu计算当前位移
@@ -95,7 +98,8 @@ private:
      * @param last_vel
      * @return
      */
-    bool ComputePosition(const Eigen::Vector3d& curr_vel, const Eigen::Vector3d& last_vel);
+    void ComputePosition(const Eigen::Vector3d &last_vel, const Eigen::Vector3d &curr_vel, const IMUData &imu_data_0,
+                         const IMUData &imu_data_1);
 
     /*!
      * 对误差进行滤波之后，需要在实际算出来的轨迹中，消除这部分误差
@@ -131,38 +135,36 @@ private:
     typedef typename Eigen::Matrix<double, DIM_MEASUREMENT, DIM_STATE> TypeMatrixG;
     typedef typename Eigen::Matrix<double, DIM_MEASUREMENT, DIM_MEASUREMENT> TypeMatrixR;
 
-    TypeVectorX X_;
-    TypeVectorY Y_;
-    TypeMatrixF F_;
-    TypeMatrixB B_;
-    TypeMatrixQ Q_;
-    TypeMatrixP P_;
-    TypeMatrixK K_;
-    TypeMatrixC C_;
-    TypeMatrixG G_;
-    TypeMatrixC R_;
+    TypeVectorX X_ = TypeVectorX::Zero();
+    TypeVectorY Y_ = TypeVectorY::Zero();
+    TypeMatrixF F_ = TypeMatrixF::Zero();
+    TypeMatrixB B_ = TypeMatrixB::Zero();
+    TypeMatrixQ Q_ = TypeMatrixQ::Zero();
+    TypeMatrixP P_ = TypeMatrixP::Zero();
+    TypeMatrixK K_ = TypeMatrixK::Zero();
+    TypeMatrixC C_ = TypeMatrixC::Zero();
+    TypeMatrixG G_ = TypeMatrixG::Zero();
+    TypeMatrixC R_ = TypeMatrixR::Zero();
 
-    TypeMatrixF Ft_;
+    TypeMatrixF Ft_ = TypeMatrixF::Zero();
 
-    Eigen::Vector3d init_velocity_ = Eigen::Vector3d::Zero();
     Eigen::Vector3d velocity_ = Eigen::Vector3d::Zero();
-    Eigen::Matrix4d init_pose_ = Eigen::Matrix4d::Identity();
     Eigen::Matrix4d pose_ = Eigen::Matrix4d::Identity();
 
     Eigen::Vector3d gyro_bias_ = Eigen::Vector3d::Zero();
     Eigen::Vector3d accel_bias_ = Eigen::Vector3d::Zero();
 
-    Eigen::Vector3d g_;//重力加速度
-    Eigen::Vector3d w_;//地球自传角速度
+    Eigen::Vector3d g_ = Eigen::Vector3d::Zero();//重力加速度
 
     GPSData curr_gps_data_;
 
-    double L_ = 0.0;//纬度
+    double earth_rotation_speed_{0.0};
 
     std::deque<IMUData> imu_data_buff_;
 
+    ConfigParameters config_parameters_;
 public:
-    void GetFGY(TypeMatrixF& F,TypeMatrixG& G, TypeVectorY & Y);
+    void GetFGY(TypeMatrixF &F, TypeMatrixG &G, TypeVectorY &Y);
 };
 
 #endif //GPS_IMU_FUSION_ESKF_H

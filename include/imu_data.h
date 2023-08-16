@@ -8,7 +8,7 @@
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Dense>
 
-class IMUData{
+class IMUData {
 public:
     IMUData() = default;
 
@@ -18,6 +18,9 @@ public:
 
     Eigen::Vector3d true_linear_accel = Eigen::Vector3d::Zero();
     Eigen::Vector3d true_angle_velocity = Eigen::Vector3d::Zero();
+
+    Eigen::Quaterniond true_q_enu = Eigen::Quaterniond::Identity();
+    Eigen::Vector3d true_t_enu = Eigen::Vector3d::Zero();
 };
 
 #endif //GPS_IMU_FUSION_IMU_DATA_H

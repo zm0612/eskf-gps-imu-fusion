@@ -2,79 +2,63 @@
 // Created by meng on 2021/2/19.
 //
 #include "eskf.h"
-#include "../3rd/sophus/se3.hpp"
+#include "gps_tool.h"
+#include "common_tool.h"
 
-constexpr double kDegree2Radian = M_PI / 180.0;
+ErrorStateKalmanFilter::ErrorStateKalmanFilter(const ConfigParameters &config_parameters)
+        : config_parameters_(config_parameters) {
 
-Eigen::Matrix3d BuildSkewMatrix(const Eigen::Vector3d& vec){
-    Eigen::Matrix3d matrix;
-    matrix << 0.0,     -vec[2],   vec[1],
-              vec[2],    0.0,     -vec[0],
-              -vec[1],   vec[0],    0.0;
+    earth_rotation_speed_ = config_parameters_.earth_rotation_speed_;
+    g_ = Eigen::Vector3d(0.0, 0.0, -config_parameters_.earth_gravity_);
 
-    return matrix;
-}
+    SetCovarianceP(config_parameters_.position_error_prior_std_,
+                   config_parameters_.velocity_error_prior_std_,
+                   config_parameters_.rotation_error_prior_std_,
+                   config_parameters_.gyro_bias_error_prior_std_,
+                   config_parameters_.accelerometer_bias_error_prior_std_);
 
-ESKF::ESKF(const YAML::Node &node) {
-    double gravity = node["earth"]["gravity"].as<double>();
-    double earth_rotation_speed = node["earth"]["rotation_speed"].as<double>();
-    double cov_prior_posi = node["covariance"]["prior"]["posi"].as<double>();
-    double cov_prior_vel = node["covariance"]["prior"]["vel"].as<double>();
-    double cov_prior_ori = node["covariance"]["prior"]["ori"].as<double>();
-    double cov_prior_epsilon = node["covariance"]["prior"]["epsilon"].as<double>();
-    double cov_prior_delta = node["covariance"]["prior"]["delta"].as<double>();
-    double cov_measurement_posi = node["covariance"]["measurement"]["posi"].as<double>();
-    double cov_process_gyro = node["covariance"]["process"]["gyro"].as<double>();
-    double cov_process_accel = node["covariance"]["process"]["accel"].as<double>();
-    L_ = node["earth"]["latitude"].as<double>();
-    g_ = Eigen::Vector3d(0.0, 0.0, -gravity);
-    w_ = Eigen::Vector3d(0.0, earth_rotation_speed * cos(L_ * kDegree2Radian),
-                         earth_rotation_speed * sin(L_ * kDegree2Radian));
+    SetCovarianceR(config_parameters_.gps_position_std_);
 
-    SetCovarianceP(cov_prior_posi, cov_prior_vel, cov_prior_ori,
-                   cov_prior_epsilon, cov_prior_delta);
-    SetCovarianceR(cov_measurement_posi);
-    SetCovarianceQ(cov_process_gyro, cov_process_accel);
+    SetCovarianceQ(config_parameters_.gyro_noise_std_, config_parameters_.accelerometer_noise_std_);
 
     X_.setZero();
     F_.setZero();
     C_.setIdentity();
-    G_.block<3,3>(INDEX_MEASUREMENT_POSI,INDEX_MEASUREMENT_POSI) = Eigen::Matrix3d::Identity();
-
-    F_.block<3,3>(INDEX_STATE_POSI, INDEX_STATE_VEL) = Eigen::Matrix3d::Identity();
-    F_.block<3,3>(INDEX_STATE_ORI, INDEX_STATE_ORI) = BuildSkewMatrix(-w_);
+    G_.block<3, 3>(INDEX_MEASUREMENT_POSI, INDEX_MEASUREMENT_POSI) = Eigen::Matrix3d::Identity();
 }
 
-void ESKF::SetCovarianceQ(double gyro_noise, double accel_noise) {
+void ErrorStateKalmanFilter::SetCovarianceQ(double gyro_noise, double accel_noise) {
     Q_.setZero();
-    Q_.block<3,3>(0,0) = Eigen::Matrix3d::Identity() * gyro_noise * gyro_noise;
-    Q_.block<3,3>(3,3) = Eigen::Matrix3d::Identity() * accel_noise * accel_noise;
+    Q_.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity() * gyro_noise * gyro_noise;
+    Q_.block<3, 3>(3, 3) = Eigen::Matrix3d::Identity() * accel_noise * accel_noise;
 }
 
-void ESKF::SetCovarianceR(double posi_noise) {
+void ErrorStateKalmanFilter::SetCovarianceR(double posi_noise) {
     R_.setZero();
     R_ = Eigen::Matrix3d::Identity() * posi_noise * posi_noise;
 }
 
-void ESKF::SetCovarianceP(double posi_noise, double velo_noise, double ori_noise,
-                          double gyro_noise, double accel_noise) {
+void ErrorStateKalmanFilter::SetCovarianceP(double posi_noise, double velocity_noise, double ori_noise,
+                                            double gyro_noise, double accel_noise) {
     P_.setZero();
-    P_.block<3,3>(INDEX_STATE_POSI, INDEX_STATE_POSI) = Eigen::Matrix3d::Identity() * posi_noise;
-    P_.block<3,3>(INDEX_STATE_VEL, INDEX_STATE_VEL) = Eigen::Matrix3d::Identity() * velo_noise;
-    P_.block<3,3>(INDEX_STATE_ORI, INDEX_STATE_ORI) = Eigen::Matrix3d::Identity() * ori_noise;
-    P_.block<3,3>(INDEX_STATE_GYRO_BIAS, INDEX_STATE_GYRO_BIAS) = Eigen::Matrix3d::Identity() * gyro_noise;
-    P_.block<3,3>(INDEX_STATE_ACC_BIAS, INDEX_STATE_ACC_BIAS) = Eigen::Matrix3d::Identity() * accel_noise;
+    P_.block<3, 3>(INDEX_STATE_POSI, INDEX_STATE_POSI) = Eigen::Matrix3d::Identity() * posi_noise * posi_noise;
+    P_.block<3, 3>(INDEX_STATE_VEL, INDEX_STATE_VEL) = Eigen::Matrix3d::Identity() * velocity_noise * velocity_noise;
+    P_.block<3, 3>(INDEX_STATE_ORI, INDEX_STATE_ORI) = Eigen::Matrix3d::Identity() * ori_noise * ori_noise;
+    P_.block<3, 3>(INDEX_STATE_GYRO_BIAS, INDEX_STATE_GYRO_BIAS) =
+            Eigen::Matrix3d::Identity() * gyro_noise * gyro_noise;
+    P_.block<3, 3>(INDEX_STATE_ACC_BIAS, INDEX_STATE_ACC_BIAS) =
+            Eigen::Matrix3d::Identity() * accel_noise * accel_noise;
 }
 
-bool ESKF::Init(const GPSData &curr_gps_data, const IMUData &curr_imu_data) {
-    init_velocity_ = curr_gps_data.true_velocity;
-    velocity_ = init_velocity_;
+bool ErrorStateKalmanFilter::Init(const GPSData &curr_gps_data, const IMUData &curr_imu_data) {
+    velocity_ = curr_gps_data.true_velocity;
 
-    Eigen::Quaterniond Q = Eigen::AngleAxisd(90 * kDegree2Radian, Eigen::Vector3d::UnitZ()) *
-                           Eigen::AngleAxisd(0 * kDegree2Radian, Eigen::Vector3d::UnitY()) *
-                           Eigen::AngleAxisd(180 * kDegree2Radian, Eigen::Vector3d::UnitX());
-    init_pose_.block<3,3>(0,0) = Q.toRotationMatrix();
-    pose_ = init_pose_;
+    Eigen::Quaterniond Q_init = Eigen::AngleAxisd(0 * kDegree2Radian, Eigen::Vector3d::UnitZ()) *
+                                Eigen::AngleAxisd(0 * kDegree2Radian, Eigen::Vector3d::UnitY()) *
+                                Eigen::AngleAxisd(0 * kDegree2Radian, Eigen::Vector3d::UnitX());
+
+    pose_.block<3, 3>(0, 0) = Q_init.toRotationMatrix();
+    pose_.block<3, 1>(0, 3) = GPSTool::LLAToLocalNED(curr_gps_data.position_lla);
 
     imu_data_buff_.clear();
     imu_data_buff_.push_back(curr_imu_data);
@@ -84,16 +68,16 @@ bool ESKF::Init(const GPSData &curr_gps_data, const IMUData &curr_imu_data) {
     return true;
 }
 
-void ESKF::GetFGY(TypeMatrixF &F, TypeMatrixG &G, TypeVectorY &Y) {
+void ErrorStateKalmanFilter::GetFGY(TypeMatrixF &F, TypeMatrixG &G, TypeVectorY &Y) {
     F = Ft_;
     G = G_;
     Y = Y_;
 }
 
-bool ESKF::Correct(const GPSData &curr_gps_data) {
+bool ErrorStateKalmanFilter::Correct(const GPSData &curr_gps_data) {
     curr_gps_data_ = curr_gps_data;
 
-    Y_ = pose_.block<3,1>(0,3) - curr_gps_data.position_ned;
+    Y_ = curr_gps_data.local_position_ned - pose_.block<3, 1>(0, 3);
 
     K_ = P_ * G_.transpose() * (G_ * P_ * G_.transpose() + C_ * R_ * C_.transpose()).inverse();
 
@@ -107,169 +91,168 @@ bool ESKF::Correct(const GPSData &curr_gps_data) {
     return true;
 }
 
-bool ESKF::Predict(const IMUData &curr_imu_data) {
+bool ErrorStateKalmanFilter::Predict(const IMUData &curr_imu_data) {
     imu_data_buff_.push_back(curr_imu_data);
 
-    UpdateOdomEstimation();
+    const Eigen::Vector3d w_in = ComputeNavigationFrameAngularVelocity(); // 时刻 m-1 -> m 地球转动引起的导航系转动角速度
+    UpdateOdomEstimation(w_in);
 
     double delta_t = curr_imu_data.time - imu_data_buff_.front().time;
 
-    Eigen::Vector3d curr_accel = pose_.block<3, 3>(0, 0)
-                                 * curr_imu_data.linear_accel;
+    Eigen::Vector3d curr_accel = pose_.block<3, 3>(0, 0) * curr_imu_data.linear_accel;
 
-    UpdateErrorState(delta_t, curr_accel);
+    UpdateErrorState(delta_t, curr_accel, w_in);
 
     imu_data_buff_.pop_front();
+
+    return true;
 }
 
-bool ESKF::UpdateErrorState(double t, const Eigen::Vector3d &accel) {
-    Eigen::Matrix3d F_23 = BuildSkewMatrix(accel);
+void ErrorStateKalmanFilter::UpdateErrorState(double t, const Eigen::Vector3d &accel, const Eigen::Vector3d &w_in_n) {
+    Eigen::Matrix3d F_23 = BuildSkewSymmetricMatrix(accel);
+    Eigen::Matrix3d F_33 = -BuildSkewSymmetricMatrix(w_in_n);
 
-    F_.block<3,3>(INDEX_STATE_VEL, INDEX_STATE_ORI) = F_23;
-    F_.block<3,3>(INDEX_STATE_VEL, INDEX_STATE_ACC_BIAS) = pose_.block<3,3>(0,0);
-    F_.block<3,3>(INDEX_STATE_ORI, INDEX_STATE_GYRO_BIAS) = -pose_.block<3,3>(0,0);
-    B_.block<3,3>(INDEX_STATE_VEL, 3) = pose_.block<3,3>(0,0);
-    B_.block<3,3>(INDEX_STATE_ORI, 0) = -pose_.block<3,3>(0,0);
+    F_.block<3, 3>(INDEX_STATE_POSI, INDEX_STATE_VEL) = Eigen::Matrix3d::Identity();
+    F_.block<3, 3>(INDEX_STATE_VEL, INDEX_STATE_ORI) = F_23;
+    F_.block<3, 3>(INDEX_STATE_ORI, INDEX_STATE_ORI) = F_33;
+    F_.block<3, 3>(INDEX_STATE_VEL, INDEX_STATE_ACC_BIAS) = pose_.block<3, 3>(0, 0);
+    F_.block<3, 3>(INDEX_STATE_ORI, INDEX_STATE_GYRO_BIAS) = -pose_.block<3, 3>(0, 0);
+    B_.block<3, 3>(INDEX_STATE_VEL, 3) = pose_.block<3, 3>(0, 0);
+    B_.block<3, 3>(INDEX_STATE_ORI, 0) = -pose_.block<3, 3>(0, 0);
 
     TypeMatrixF Fk = TypeMatrixF::Identity() + F_ * t;
     TypeMatrixB Bk = B_ * t;
 
+    // 用于可观测性分析
     Ft_ = F_ * t;
 
     X_ = Fk * X_;
     P_ = Fk * P_ * Fk.transpose() + Bk * Q_ * Bk.transpose();
-
-    return true;
 }
 
-bool ESKF::UpdateOdomEstimation() {
-    Eigen::Vector3d angular_delta;
-    ComputeAngularDelta(angular_delta);
+void ErrorStateKalmanFilter::UpdateOdomEstimation(const Eigen::Vector3d &w_in) {
+    const auto &last_imu_data = imu_data_buff_.at(0);
+    const auto &curr_imu_data = imu_data_buff_.at(1);
+    const double delta_t = curr_imu_data.time - last_imu_data.time;
 
-    Eigen::Matrix3d R_nm_nm_1;
-    ComputeEarthTranform(R_nm_nm_1);
+    Eigen::Vector3d delta_rotation = ComputeDeltaRotation(last_imu_data, curr_imu_data);
 
-    Eigen::Matrix3d curr_R, last_R;
-    ComputeOrientation(angular_delta, R_nm_nm_1, curr_R, last_R);
+    const Eigen::Vector3d phi_in = w_in * delta_t;
+    const Eigen::AngleAxisd angle_axisd(phi_in.norm(), phi_in.normalized());
+    const Eigen::Matrix3d R_nm_nm_1 = angle_axisd.toRotationMatrix().transpose();
 
-    Eigen::Vector3d curr_vel, last_vel;
-    ComputeVelocity(curr_vel, last_vel, curr_R, last_R);
+    Eigen::Matrix3d curr_R; // R_n_m m时刻的旋转
+    Eigen::Matrix3d last_R; // C_n_m_1 m-1时刻的旋转
+    ComputeOrientation(delta_rotation, R_nm_nm_1, curr_R, last_R);
 
-    ComputePosition(curr_vel, last_vel);
+    Eigen::Vector3d curr_vel; // 当前时刻导航系下的速度
+    Eigen::Vector3d last_vel; // 上一时刻导航系下的速度
+    ComputeVelocity(last_R, curr_R, last_imu_data, curr_imu_data, last_vel, curr_vel);
 
-    return true;
+    ComputePosition(last_vel, curr_vel, last_imu_data, curr_imu_data);
 }
 
-bool ESKF::ComputeAngularDelta(Eigen::Vector3d &angular_delta) {
-    IMUData curr_imu_data = imu_data_buff_.at(1);
-    IMUData last_imu_data = imu_data_buff_.at(0);
+Eigen::Vector3d ErrorStateKalmanFilter::ComputeDeltaRotation(const IMUData &imu_data_0, const IMUData &imu_data_1) {
+    const double delta_t = imu_data_1.time - imu_data_0.time;
 
-    double delta_t = curr_imu_data.time - last_imu_data.time;
+    CHECK_GT(delta_t, 0.0) << "IMU timestamp error";
 
-    if (delta_t <= 0){
-        return false;
-    }
+    const Eigen::Vector3d &unbias_gyro_0 = ComputeUnbiasGyro(imu_data_0.angle_velocity);
+    const Eigen::Vector3d &unbias_gyro_1 = ComputeUnbiasGyro(imu_data_1.angle_velocity);
 
-    Eigen::Vector3d curr_angular_vel = curr_imu_data.angle_velocity;
+    Eigen::Vector3d delta_theta = 0.5 * (unbias_gyro_0 + unbias_gyro_1) * delta_t;
 
-    Eigen::Vector3d last_angular_vel = last_imu_data.angle_velocity;
-
-    Eigen::Vector3d curr_unbias_angular_vel = curr_angular_vel;
-    Eigen::Vector3d last_unbias_angular_vel = last_angular_vel;
-
-    angular_delta = 0.5 * (curr_unbias_angular_vel + last_unbias_angular_vel) * delta_t;
-
-    return true;
+    return delta_theta;
 }
 
-bool ESKF::ComputeEarthTranform(Eigen::Matrix3d &R_nm_nm_1) {
-    IMUData curr_imu_data = imu_data_buff_.at(1);
-    IMUData last_imu_data = imu_data_buff_.at(0);
+Eigen::Vector3d ErrorStateKalmanFilter::ComputeNavigationFrameAngularVelocity() {
+    const double latitude = curr_gps_data_.position_lla.y() * kDegree2Radian;
+    const double height = curr_gps_data_.position_lla.z();
 
-    double delta_t = curr_imu_data.time - last_imu_data.time;
+    constexpr double f = 1.0 / 298.257223563; // 椭球扁率
 
-    constexpr double rm = 6353346.18315;
-    constexpr double rn = 6384140.52699;
-    Eigen::Vector3d w_en_n(-velocity_[1] / (rm + curr_gps_data_.position_lla[2]),
-                           velocity_[0] / (rn + curr_gps_data_.position_lla[2]),
-                           velocity_[0] / (rn + curr_gps_data_.position_lla[2])
-                           * std::tan(curr_gps_data_.position_lla[0] * kDegree2Radian));
+    constexpr double Re = 6378137.0; // 椭圆长半轴
+    constexpr double Rp = (1.0 - f) * Re; // 椭圆短半轴
+    const double e = std::sqrt(Re * Re - Rp * Rp) / Re; // 椭圆的偏心率
 
-    Eigen::Vector3d w_in_n = w_en_n + w_;
+    const double Rn = Re / std::sqrt(1.0 - e * e * std::sin(latitude) * std::sin(latitude)); // 子午圈主曲率半径
+    const double Rm = Re * (1.0 - e * e)
+                      / std::pow(1.0 - e * e * std::sin(latitude) * std::sin(latitude), 3.0 / 2.0); // 卯酉圈主曲率半径
 
-    auto angular = delta_t * w_in_n;
+    // 由于载体在地球表面运动造成的导航系姿态变化。在导航系下表示
+    Eigen::Vector3d w_en_n;
+    w_en_n << velocity_[1] / (Rm + height), -velocity_[0] / (Rn + height),
+            -velocity_[1] / (Rn + height) * std::tan(latitude);
 
-    Eigen::AngleAxisd angle_axisd(angular.norm(), angular.normalized());
+    Eigen::Vector3d w_ie_n;
+    w_ie_n << earth_rotation_speed_ * std::cos(latitude), 0.0, -earth_rotation_speed_ * std::sin(latitude);
 
-    R_nm_nm_1 = angle_axisd.toRotationMatrix().transpose();
+    Eigen::Vector3d w_in_n = w_en_n + w_ie_n;
+
+    return w_in_n;
 }
 
-bool ESKF::ComputeOrientation(const Eigen::Vector3d &angular_delta,
-                              const Eigen::Matrix3d R_nm_nm_1,
-                              Eigen::Matrix3d &curr_R,
-                              Eigen::Matrix3d &last_R) {
+void ErrorStateKalmanFilter::ComputeOrientation(const Eigen::Vector3d &angular_delta,
+                                                const Eigen::Matrix3d &R_nm_nm_1,
+                                                Eigen::Matrix3d &curr_R,
+                                                Eigen::Matrix3d &last_R) {
     Eigen::AngleAxisd angle_axisd(angular_delta.norm(), angular_delta.normalized());
+
     last_R = pose_.block<3, 3>(0, 0);
-
-    curr_R = R_nm_nm_1 * pose_.block<3, 3>(0, 0) * angle_axisd.toRotationMatrix();
-
+    curr_R = R_nm_nm_1.transpose() * pose_.block<3, 3>(0, 0) * angle_axisd.toRotationMatrix();
     pose_.block<3, 3>(0, 0) = curr_R;
-
-    return true;
 }
 
-bool ESKF::ComputeVelocity(Eigen::Vector3d &curr_vel, Eigen::Vector3d& last_vel,
-                                             const Eigen::Matrix3d &curr_R,
-                                             const Eigen::Matrix3d last_R) {
-    IMUData curr_imu_data = imu_data_buff_.at(1);
-    IMUData last_imu_data = imu_data_buff_.at(0);
-    double delta_t = curr_imu_data.time - last_imu_data.time;
-    if (delta_t <=0 ){
-        return false;
-    }
+void ErrorStateKalmanFilter::ComputeVelocity(const Eigen::Matrix3d &R_0, const Eigen::Matrix3d &R_1,
+                                             const IMUData &imu_data_0, const IMUData &imu_data_1,
+                                             Eigen::Vector3d &last_vel, Eigen::Vector3d &curr_vel) {
+    double delta_t = imu_data_1.time - imu_data_0.time;
 
-    Eigen::Vector3d curr_accel = curr_imu_data.linear_accel;
-    Eigen::Vector3d curr_unbias_accel = GetUnbiasAccel(curr_R * curr_accel);
+    CHECK_GT(delta_t, 0.0) << "IMU timestamp error";
 
-    Eigen::Vector3d last_accel = last_imu_data.linear_accel;
-    Eigen::Vector3d last_unbias_accel = GetUnbiasAccel(last_R * last_accel);
+    Eigen::Vector3d unbias_accel_0 = R_0 * ComputeUnbiasAccel(imu_data_0.linear_accel);
+    Eigen::Vector3d unbias_accel_1 = R_1 * ComputeUnbiasAccel(imu_data_1.linear_accel);
 
     last_vel = velocity_;
 
-    velocity_ += delta_t * 0.5 * (curr_unbias_accel + last_unbias_accel);
+    // 中值积分
+    velocity_ += delta_t * 0.5 * (unbias_accel_0 + unbias_accel_1);
+
     curr_vel = velocity_;
-
-    return true;
 }
 
-Eigen::Vector3d ESKF::GetUnbiasAccel(const Eigen::Vector3d &accel) {
-//    return accel - accel_bias_ + g_;
-    return accel + g_;
+Eigen::Vector3d ErrorStateKalmanFilter::ComputeUnbiasAccel(const Eigen::Vector3d &accel) {
+    return accel - accel_bias_ - g_;
 }
 
-bool ESKF::ComputePosition(const Eigen::Vector3d& curr_vel, const Eigen::Vector3d& last_vel){
-    double delta_t = imu_data_buff_.at(1).time - imu_data_buff_.at(0).time;
-
-    pose_.block<3,1>(0,3) += 0.5 * delta_t * (curr_vel + last_vel);
-
-    return true;
+Eigen::Vector3d ErrorStateKalmanFilter::ComputeUnbiasGyro(const Eigen::Vector3d &gyro) {
+    return gyro - gyro_bias_;
 }
 
-void ESKF::ResetState() {
+void ErrorStateKalmanFilter::ComputePosition(const Eigen::Vector3d &last_vel, const Eigen::Vector3d &curr_vel,
+                                             const IMUData &imu_data_0,
+                                             const IMUData &imu_data_1) {
+    double delta_t = imu_data_1.time - imu_data_0.time;
+
+    pose_.block<3, 1>(0, 3) += 0.5 * delta_t * (curr_vel + last_vel) +
+                               0.25 * (imu_data_0.linear_accel + imu_data_1.linear_accel) * delta_t * delta_t;
+}
+
+void ErrorStateKalmanFilter::ResetState() {
     X_.setZero();
 }
 
-void ESKF::EliminateError() {
-    pose_.block<3,1>(0,3) = pose_.block<3,1>(0,3) - X_.block<3,1>(INDEX_STATE_POSI, 0);
+void ErrorStateKalmanFilter::EliminateError() {
+    pose_.block<3, 1>(0, 3) = pose_.block<3, 1>(0, 3) + X_.block<3, 1>(INDEX_STATE_POSI, 0);
 
-    velocity_ = velocity_ - X_.block<3,1>(INDEX_STATE_VEL, 0);
-    Eigen::Matrix3d C_nn = Sophus::SO3d::exp(X_.block<3,1>(INDEX_STATE_ORI, 0)).matrix();
-    pose_.block<3,3>(0,0) = C_nn * pose_.block<3,3>(0,0);
+    velocity_ = velocity_ + X_.block<3, 1>(INDEX_STATE_VEL, 0);
+    Eigen::Matrix3d C_nn = SO3Exp(-X_.block<3, 1>(INDEX_STATE_ORI, 0));
+    pose_.block<3, 3>(0, 0) = C_nn * pose_.block<3, 3>(0, 0);
 
-    gyro_bias_ = gyro_bias_ - X_.block<3,1>(INDEX_STATE_GYRO_BIAS, 0);
-    accel_bias_ = accel_bias_ - X_.block<3,1>(INDEX_STATE_ACC_BIAS, 0);
+    gyro_bias_ = gyro_bias_ + X_.block<3, 1>(INDEX_STATE_GYRO_BIAS, 0);
+    accel_bias_ = accel_bias_ + X_.block<3, 1>(INDEX_STATE_ACC_BIAS, 0);
 }
 
-Eigen::Matrix4d ESKF::GetPose() const {
+Eigen::Matrix4d ErrorStateKalmanFilter::GetPose() const {
     return pose_;
 }

@@ -90,3 +90,4 @@ dkms.conf
 # folder
 /build
 /cmake-build-debug
+*.idea/

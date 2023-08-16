@@ -22,7 +22,7 @@ b. **在Ubuntu20.04系统下可以成功编译，但是运行有问题**
 蓝色轨迹：fuse IMU and GPS
 红色轨迹：GPS
 
-实现方法请参考我的博客[《【附源码+代码注释】误差状态卡尔曼滤波(error-state Kalman Filter)实现GPS+IMU融合，EKF ESKF GPS+IMU》](https://blog.csdn.net/u011341856/article/details/114262451)
+实现方法请参考我的博客[《【附源码+代码注释】误差状态卡尔曼滤波(error-state Kalman Filter)实现GPS+IMU融合，EKF ErrorStateKalmanFilter GPS+IMU》](https://blog.csdn.net/u011341856/article/details/114262451)
 
 ## 1.  依赖库
 
@@ -52,7 +52,7 @@ make
 
 ```shell
 cd eskf-gps-imu-fusion/build
-./gps_imu_fusion
+./gps_imu_fusion /xxx/eskf-gps-imu-fusion/config/config.yaml /xxx/eskf-gps-imu-fusion/data
 ```
 
 ## 4.轨迹显示
@@ -61,7 +61,7 @@ cd eskf-gps-imu-fusion/build
 
 ```shell
 cd eskf-gps-imu-fusion/data
-evo_traj kitti fused.txt gt.txt measured.txt -p
+evo_traj tum fused.txt gt.txt gps_measurement.txt -p
 ```
 
 > 需要安装evo，可以参考我的博客中的介绍：https://blog.csdn.net/u011341856/article/details/104594392?spm=1001.2014.3001.5501

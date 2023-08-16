@@ -4,17 +4,19 @@
 
 #include <iostream>
 
-#include "global_defination.h"
-#include "imu_flow.h"
+#include "imu_tool.h"
 
-int main(){
-    std::string data_path = WORK_SPACE_PATH + "/data/raw_data";
+int main(int argc, char **argv) {
+    if (argc != 2) {
+        std::cout << "Please enter right command!" << std::endl;
+        std::cout << "$ ./test_imu data_file_path" << std::endl;
+
+        return -1;
+    }
 
     std::vector<IMUData> imu_data_buff;
 
-    IMUFlow imu_flow;
-
-    imu_flow.ReadIMUData(data_path, imu_data_buff);
+    IMUTool::ReadIMUData(std::string(argv[1]), imu_data_buff);
 
     for (int i = 0; i < imu_data_buff.size(); ++i) {
         std::cout << "\nindex: " << i << std::endl;

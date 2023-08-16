@@ -8,15 +8,17 @@ set(ALL_TARGET_LIBRARIES "")
 
 include(cmake/eigen.cmake)
 include(cmake/YAML.cmake)
-include(cmake/global_defination.cmake)
+
+include(cmake/glog.cmake)
+include_directories(${GLOG_INCLUDE_DIRS})
 
 include_directories(${PROJECT_SOURCE_DIR}/3rd/GeographicLib/include/)
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
 add_library(DEPS SHARED
     src/eskf.cpp
-    src/gps_flow.cpp
-    src/imu_flow.cpp
+    src/gps_tool.cpp
+    src/imu_tool.cpp
     src/eskf_flow.cpp
     src/observability_analysis.cpp
     3rd/GeographicLib/src/LocalCartesian.cpp
@@ -26,6 +28,7 @@ add_library(DEPS SHARED
 
 target_link_libraries(DEPS
     ${ALL_TARGET_LIBRARIES}
+    ${GLOG_LIBRARIES}
 )
 
 add_executable(gps_imu_fusion app/gps_imu_fusion.cpp)
@@ -37,3 +40,6 @@ target_link_libraries(test_gps DEPS)
 
 add_executable(test_imu test/test_imu.cpp)
 target_link_libraries(test_imu DEPS)
+
+add_executable(test_tool test/test_tool.cpp)
+target_link_libraries(test_tool DEPS)

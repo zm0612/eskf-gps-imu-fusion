@@ -5,34 +5,32 @@
 #define GPS_IMU_FUSION_ESKF_FLOW_H
 
 #include "eskf.h"
-#include "imu_flow.h"
-#include "gps_flow.h"
+#include "imu_tool.h"
+#include "gps_tool.h"
+#include "config_parameters.h"
 #include "observability_analysis.h"
 
 #include <memory>
 #include <deque>
 #include <iostream>
 
-class ESKFFlow{
+class ESKFFlow {
 public:
-    ESKFFlow() = default;
-    ESKFFlow(const std::string& work_space_path);
+    ESKFFlow() = delete;
+
+    explicit ESKFFlow(const std::string &config_file_path, std::string data_file_path);
 
     /*!
      * 从本地文件中读取IMU和GPS的数据
      * @return
      */
-    bool ReadData();
+    void ReadData();
 
     /*!
      * 对IMU和GPS数据进行时间戳对齐，该函数只在ESKF初始化时使用
      * @return
      */
     bool ValidGPSAndIMUData();
-
-    bool ValidIMUData();
-
-    bool ValidGPSData();
 
     bool Run();
 
@@ -43,12 +41,26 @@ public:
      * @param ofs
      * @param pose
      */
-    void SavePose(std::ofstream &ofs, const Eigen::Matrix4d &pose);
+    static void SavePose(std::ofstream &ofs, const Eigen::Matrix4d &pose);
+
+    /*!
+     * Save TUM pose
+     *
+     * note:
+     * timestamp x y z q_x q_y q_z q_w
+     *
+     * @param ofs
+     * @param pose
+     */
+    static void SaveTUMPose(std::ofstream &ofs, const Eigen::Quaterniond &q,
+                            const Eigen::Vector3d &t, double timestamp);
 
 private:
-    std::shared_ptr<ESKF> eskf_ptr_;
-    std::shared_ptr<IMUFlow> imu_flow_ptr_;
-    std::shared_ptr<GPSFlow> gps_flow_ptr_;
+    ConfigParameters config_parameters_;
+
+    std::shared_ptr<ErrorStateKalmanFilter> eskf_ptr_;
+    std::shared_ptr<IMUTool> imu_flow_ptr_;
+    std::shared_ptr<GPSTool> gps_flow_ptr_;
 
     ObservabilityAnalysis observability_analysis;//可观测度分析工具
 
@@ -60,7 +72,8 @@ private:
 
     bool use_observability_analysis_ = false;//是否进行可观测度分析
 
-    const std::string work_space_path_;
+    const std::string config_file_path_;
+    const std::string data_file_path_;
 };
 
 #endif //GPS_IMU_FUSION_ESKF_FLOW_H

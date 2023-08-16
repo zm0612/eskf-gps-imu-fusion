@@ -1,20 +1,21 @@
-filter_method: ESKF
+# earth
+earth_rotation_speed: 7.2921151467e-05  # rad/s
+earth_gravity: 9.794444352667332154
 
-earth:
-  rotation_speed: 7.272205216e-05
-  gravity: 9.79484197226504
-  latitude: 32
-  longtitude: 120
+# reference point
+ref_longitude: 120.401989
+ref_latitude: 31.508183
 
-covariance:
-  prior:
-    posi: 1.0e-4
-    vel: 1.0e-4
-    ori: 1.0e-6
-    epsilon: 1.0e-6
-    delta: 1.0e-6
-  process:
-    gyro: 1.0e-5
-    accel: 1.0e-4
-  measurement:
-    posi: 10
+# kalman prediction process std
+position_error_prior_std: 1.0e-5
+velocity_error_prior_std: 1.0e-5
+rotation_error_prior_std: 1.0e-5
+gyro_bias_error_prior_std: 1.0e-5
+accelerometer_bias_error_prior_std: 1.0e-5
+
+# imu sensor noise
+gyro_noise_std: 1.0e-2
+accelerometer_noise_std: 1.0e-1
+
+# kalman measurement process std (uint: m)
+gps_position_std: 5
