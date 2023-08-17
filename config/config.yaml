@@ -18,4 +18,12 @@ gyro_noise_std: 1.0e-2
 accelerometer_noise_std: 1.0e-1
 
 # kalman measurement process std (uint: m)
-gps_position_std: 5
+gps_position_x_std: 5
+gps_position_y_std: 5
+gps_position_z_std: 8
+
+# only use prediction, equivalent to only using IMU to integration
+only_prediction: false
+
+# use earth model
+use_earth_model: true

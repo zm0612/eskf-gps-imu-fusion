@@ -61,7 +61,7 @@ bool ESKFFlow::Run() {
     std::ofstream fused_file(data_file_path_ + "/fused.txt", std::ios::trunc);
     std::ofstream measured_file(data_file_path_ + "/gps_measurement.txt", std::ios::trunc);
 
-    LOG(INFO) << "Start Fusion IMU and GPS ...";
+    LOG(INFO) << "Start fuse IMU and GPS ...";
     while (!imu_data_buff_.empty() && !gps_data_buff_.empty()) {
         curr_imu_data_ = imu_data_buff_.front();
         curr_gps_data_ = gps_data_buff_.front();
@@ -72,7 +72,9 @@ bool ESKFFlow::Run() {
             eskf_ptr_->Predict(curr_imu_data_);
             imu_data_buff_.pop_front();
 
-            eskf_ptr_->Correct(curr_gps_data_);
+            if (!config_parameters_.only_prediction_){
+                eskf_ptr_->Correct(curr_gps_data_);
+            }
 
             SaveTUMPose(fused_file, Eigen::Quaterniond(eskf_ptr_->GetPose().topLeftCorner<3, 3>()),
                         eskf_ptr_->GetPose().topRightCorner<3, 1>(), curr_imu_data_.time);
@@ -100,7 +102,7 @@ bool ESKFFlow::Run() {
         observability_analysis.ComputeObservability();
     }
 
-    LOG(INFO) << "End Fusion IMU and GPS";
+    LOG(INFO) << "End fuse IMU and GPS";
     LOG(INFO) << "Ground Truth data in: " << data_file_path_ + "/gt.txt";
     LOG(INFO) << "Fusion data in: " << data_file_path_ + "/fused.txt";
     LOG(INFO) << "GPS data in: " << data_file_path_ + "/gps_measurement.txt";

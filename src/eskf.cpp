@@ -17,7 +17,9 @@ ErrorStateKalmanFilter::ErrorStateKalmanFilter(const ConfigParameters &config_pa
                    config_parameters_.gyro_bias_error_prior_std_,
                    config_parameters_.accelerometer_bias_error_prior_std_);
 
-    SetCovarianceR(config_parameters_.gps_position_std_);
+    SetCovarianceR(config_parameters_.gps_position_x_std_,
+                   config_parameters_.gps_position_y_std_,
+                   config_parameters_.gps_position_z_std_);
 
     SetCovarianceQ(config_parameters_.gyro_noise_std_, config_parameters_.accelerometer_noise_std_);
 
@@ -33,9 +35,11 @@ void ErrorStateKalmanFilter::SetCovarianceQ(double gyro_noise, double accel_nois
     Q_.block<3, 3>(3, 3) = Eigen::Matrix3d::Identity() * accel_noise * accel_noise;
 }
 
-void ErrorStateKalmanFilter::SetCovarianceR(double posi_noise) {
+void ErrorStateKalmanFilter::SetCovarianceR(double position_x_std, double position_y_std, double position_z_std) {
     R_.setZero();
-    R_ = Eigen::Matrix3d::Identity() * posi_noise * posi_noise;
+    R_(0, 0) = position_x_std * position_x_std;
+    R_(1, 1) = position_y_std * position_y_std;
+    R_(2, 2) = position_z_std * position_z_std;
 }
 
 void ErrorStateKalmanFilter::SetCovarianceP(double posi_noise, double velocity_noise, double ori_noise,
@@ -58,7 +62,7 @@ bool ErrorStateKalmanFilter::Init(const GPSData &curr_gps_data, const IMUData &c
                                 Eigen::AngleAxisd(0 * kDegree2Radian, Eigen::Vector3d::UnitX());
 
     pose_.block<3, 3>(0, 0) = Q_init.toRotationMatrix();
-    pose_.block<3, 1>(0, 3) = GPSTool::LLAToLocalNED(curr_gps_data.position_lla);
+    pose_.block<3, 1>(0, 3) = GPSTool::LLAToLocalNED(curr_gps_data.true_position_lla);
 
     imu_data_buff_.clear();
     imu_data_buff_.push_back(curr_imu_data);
@@ -94,7 +98,11 @@ bool ErrorStateKalmanFilter::Correct(const GPSData &curr_gps_data) {
 bool ErrorStateKalmanFilter::Predict(const IMUData &curr_imu_data) {
     imu_data_buff_.push_back(curr_imu_data);
 
-    const Eigen::Vector3d w_in = ComputeNavigationFrameAngularVelocity(); // 时刻 m-1 -> m 地球转动引起的导航系转动角速度
+    Eigen::Vector3d w_in = Eigen::Vector3d::Zero();
+
+    if (config_parameters_.use_earth_model_) {
+        w_in = ComputeNavigationFrameAngularVelocity(); // 时刻 m-1 -> m 地球转动引起的导航系转动角速度
+    }
     UpdateOdomEstimation(w_in);
 
     double delta_t = curr_imu_data.time - imu_data_buff_.front().time;

@@ -5,7 +5,7 @@
 #ifndef GPS_IMU_FUSION_GPS_DATA_H
 #define GPS_IMU_FUSION_GPS_DATA_H
 
-#include "GeographicLib/LocalCartesian.hpp"
+#include "Geocentric/LocalCartesian.hpp"
 #include <eigen3/Eigen/Core>
 
 class GPSData {

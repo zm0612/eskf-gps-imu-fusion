@@ -12,6 +12,8 @@ include(cmake/YAML.cmake)
 include(cmake/glog.cmake)
 include_directories(${GLOG_INCLUDE_DIRS})
 
+add_subdirectory(3rd/GeographicLib GeographicLib)
+
 include_directories(${PROJECT_SOURCE_DIR}/3rd/GeographicLib/include/)
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
@@ -21,14 +23,12 @@ add_library(DEPS SHARED
     src/imu_tool.cpp
     src/eskf_flow.cpp
     src/observability_analysis.cpp
-    3rd/GeographicLib/src/LocalCartesian.cpp
-    3rd/GeographicLib/src/Geocentric.cpp
-    3rd/GeographicLib/src/Math.cpp
 )
 
 target_link_libraries(DEPS
     ${ALL_TARGET_LIBRARIES}
     ${GLOG_LIBRARIES}
+    libGeographiccc
 )
 
 add_executable(gps_imu_fusion app/gps_imu_fusion.cpp)

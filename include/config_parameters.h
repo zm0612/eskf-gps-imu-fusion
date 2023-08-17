@@ -27,7 +27,11 @@ public:
             gyro_bias_error_prior_std_ = config_node["gyro_bias_error_prior_std"].as<double>();
             gyro_noise_std_ = config_node["gyro_noise_std"].as<double>();
             accelerometer_noise_std_ = config_node["accelerometer_noise_std"].as<double>();
-            gps_position_std_ = config_node["gps_position_std"].as<double>();
+            gps_position_x_std_ = config_node["gps_position_x_std"].as<double>();
+            gps_position_y_std_ = config_node["gps_position_y_std"].as<double>();
+            gps_position_z_std_ = config_node["gps_position_z_std"].as<double>();
+            only_prediction_ = config_node["only_prediction"].as<bool>();
+            use_earth_model_ = config_node["use_earth_model"].as<bool>();
 
             LOG(INFO) << "####### Config Parameters #######";
             LOG(INFO) << "earth_rotation_speed: " << earth_rotation_speed_;
@@ -41,7 +45,11 @@ public:
             LOG(INFO) << "gyro_bias_error_prior_std: " << gyro_bias_error_prior_std_;
             LOG(INFO) << "gyro_noise_std: " << gyro_noise_std_;
             LOG(INFO) << "accelerometer_noise_std: " << accelerometer_noise_std_;
-            LOG(INFO) << "gps_position_std: " << gps_position_std_;
+            LOG(INFO) << "gps_position_x_std: " << gps_position_x_std_;
+            LOG(INFO) << "gps_position_y_std: " << gps_position_y_std_;
+            LOG(INFO) << "gps_position_z_std: " << gps_position_z_std_;
+            LOG(INFO) << "only_prediction: " << only_prediction_;
+            LOG(INFO) << "use_earth_model: " << use_earth_model_;
             LOG(INFO) << std::endl;
         } catch (...) {
             LOG(FATAL) << "Load config parameters failure, path: " << config_file_path;
@@ -69,7 +77,14 @@ public:
     double accelerometer_noise_std_{};
 
     // kalman measurement process std
-    double gps_position_std_{};
+    double gps_position_x_std_{};
+    double gps_position_y_std_{};
+    double gps_position_z_std_{};
+
+    // only using IMU to integration
+    bool only_prediction_{};
+
+    bool use_earth_model_{};
 };
 
 #endif //GPS_IMU_FUSION_CONFIG_PARAMETERS_H

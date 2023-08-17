@@ -49,7 +49,11 @@ public:
 private:
     void SetCovarianceQ(double gyro_noise_cov, double accel_noise_cov);
 
-    void SetCovarianceR(double posi_noise_cov);
+    /*!
+     *
+     * @param position_x_std
+     */
+    void SetCovarianceR(double position_x_std, double position_y_std, double position_z_std);
 
     void SetCovarianceP(double posi_noise, double velocity_noise, double ori_noise,
                         double gyro_noise, double accel_noise);
