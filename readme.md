@@ -21,6 +21,11 @@ Yaml
 sudo apt-get install libyaml-cpp-dev
 ```
 
+Glog
+```shell
+sudo apt-get install libgoogle-glog-dev
+```
+
 ## 2. 编译
 
 ```shell
@@ -35,16 +40,21 @@ make
 
 ```shell
 cd eskf-gps-imu-fusion/build
-./gps_imu_fusion /xxx/eskf-gps-imu-fusion/config/config.yaml /xxx/eskf-gps-imu-fusion/data
+./gps_imu_fusion ./config/config.yaml ./data
 ```
 
 ## 4.轨迹显示
 
 执行完`./gps_imu_fusion`会生成轨迹文件
+```shell
+cd eskf-gps-imu-fusion/data
+python display_path.py
+```
 
+## 5.误差分析
+
+__推荐使用工具__: [evo](https://github.com/MichaelGrupp/evo)
 ```shell
 cd eskf-gps-imu-fusion/data
 evo_traj tum fused.txt gt.txt gps_measurement.txt -p
 ```
-
-> 需要安装evo，可以参考我的博客中的介绍：https://blog.csdn.net/u011341856/article/details/104594392?spm=1001.2014.3001.5501
