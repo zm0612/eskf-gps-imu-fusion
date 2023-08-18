@@ -34,5 +34,5 @@ python my_test.py
 ## 3.注意
 
 - [gnss-ins-sim](https://github.com/Aceinna/gnss-ins-sim)是一个用于仿真imu、gps、磁力计数据的软件，是一个非常不错的小工具，使用起来非常容易，建议你看一下它的[README介绍文件](https://github.com/Aceinna/gnss-ins-sim#gnss-ins-sim)。
-- 一定要注意坐标系之间的关系，imu是body frame，gps位置是lla形式，是在NED(坐标系)，gps数据通过`GeographicLib`库转换之后对应的是ENU(东北天)坐标系，这之间的坐标关系，你一定要理清楚，不然很容易就会出错。
+- 一定要注意坐标系之间的关系，imu是body frame(前后下)，gps位置是lla形式，导航系是在NED坐标系，gps数据通过`GeographicLib`库转换之后对应的是ENU(东北天)坐标系，我在代码中将其转到了NED，这之间的坐标关系，你一定要理清楚，不然很容易就会出错。
 
