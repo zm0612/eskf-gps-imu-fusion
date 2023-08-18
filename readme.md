@@ -39,8 +39,8 @@ make
 ## 3. 运行
 
 ```shell
-cd eskf-gps-imu-fusion/build
-./gps_imu_fusion ./config/config.yaml ./data
+cd eskf-gps-imu-fusion
+./build/gps_imu_fusion ./config/config.yaml ./data
 ```
 
 ## 4.轨迹显示
