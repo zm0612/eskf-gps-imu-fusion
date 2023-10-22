@@ -218,8 +218,8 @@ void ErrorStateKalmanFilter::ComputeVelocity(const Eigen::Matrix3d &R_0, const E
 
     CHECK_GT(delta_t, 0.0) << "IMU timestamp error";
 
-    Eigen::Vector3d unbias_accel_0 = R_0 * ComputeUnbiasAccel(imu_data_0.linear_accel);
-    Eigen::Vector3d unbias_accel_1 = R_1 * ComputeUnbiasAccel(imu_data_1.linear_accel);
+    Eigen::Vector3d unbias_accel_0 = R_0 * ComputeUnbiasAccel(imu_data_0.linear_accel) - g_;
+    Eigen::Vector3d unbias_accel_1 = R_1 * ComputeUnbiasAccel(imu_data_1.linear_accel) - g_;
 
     last_vel = velocity_;
 
@@ -230,7 +230,7 @@ void ErrorStateKalmanFilter::ComputeVelocity(const Eigen::Matrix3d &R_0, const E
 }
 
 Eigen::Vector3d ErrorStateKalmanFilter::ComputeUnbiasAccel(const Eigen::Vector3d &accel) {
-    return accel - accel_bias_ - g_;
+    return accel - accel_bias_;
 }
 
 Eigen::Vector3d ErrorStateKalmanFilter::ComputeUnbiasGyro(const Eigen::Vector3d &gyro) {
