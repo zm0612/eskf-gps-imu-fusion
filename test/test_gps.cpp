@@ -18,7 +18,8 @@ int main(int argc, char **argv) {
 
     std::vector<GPSData> gps_data_buff;
 
-    GPSTool::ReadGPSData(data_path, gps_data_buff);
+    GPSTool gps_tool(0.0, 0.0, 0.0);
+    gps_tool.ReadGPSData(data_path, gps_data_buff);
 
 
     for (int i = 0; i < gps_data_buff.size(); ++i) {

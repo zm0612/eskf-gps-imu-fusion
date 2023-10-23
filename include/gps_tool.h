@@ -13,20 +13,20 @@
 
 class GPSTool {
 public:
-    GPSTool() = default;
+    GPSTool() = delete;
 
-    GPSTool(double lon, double lat);
+    GPSTool(double lon, double lat, double altitude);
 
-    static void LLAToLocalNED(GPSData &gps_data);
+    void LLAToLocalNED(GPSData &gps_data);
 
-    static Eigen::Vector3d LLAToLocalNED(const Eigen::Vector3d &lla);
+    Eigen::Vector3d LLAToLocalNED(const Eigen::Vector3d &lla);
 
-    static void ReadGPSData(const std::string &path, std::vector<GPSData> &gps_data_vec, int skip_rows = 1);
+    void ReadGPSData(const std::string &path, std::vector<GPSData> &gps_data_vec, int skip_rows = 1);
 
-    static void ReadGPSData(const std::string &path, std::deque<GPSData> &gps_data_vec, int skip_rows = 1);
+    void ReadGPSData(const std::string &path, std::deque<GPSData> &gps_data_vec, int skip_rows = 1);
 
 private:
-    static GeographicLib::LocalCartesian geo_converter_; // only support ENU
+    GeographicLib::LocalCartesian geo_converter_; // only support ENU
 };
 
 #endif //GPS_IMU_FUSION_GPS_TOOL_H

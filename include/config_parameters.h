@@ -20,6 +20,7 @@ public:
             earth_gravity_ = config_node["earth_gravity"].as<double>();
             ref_longitude_ = config_node["ref_longitude"].as<double>();
             ref_latitude_ = config_node["ref_latitude"].as<double>();
+            ref_altitude_ = config_node["ref_altitude"].as<double>();
             position_error_prior_std_ = config_node["position_error_prior_std"].as<double>();
             velocity_error_prior_std_ = config_node["velocity_error_prior_std"].as<double>();
             rotation_error_prior_std_ = config_node["rotation_error_prior_std"].as<double>();
@@ -38,6 +39,7 @@ public:
             LOG(INFO) << "earth_gravity: " << earth_gravity_;
             LOG(INFO) << "ref_longitude: " << ref_longitude_;
             LOG(INFO) << "ref_latitude: " << ref_latitude_;
+            LOG(INFO) << "ref_altitude: " << ref_altitude_;
             LOG(INFO) << "position_error_prior_std: " << position_error_prior_std_;
             LOG(INFO) << "velocity_error_prior_std: " << velocity_error_prior_std_;
             LOG(INFO) << "rotation_error_prior_std: " << rotation_error_prior_std_;
@@ -64,6 +66,7 @@ public:
     // reference point
     double ref_longitude_{};
     double ref_latitude_{};
+    double ref_altitude_{};
 
     // kalman prediction process std
     double position_error_prior_std_{};

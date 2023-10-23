@@ -14,7 +14,9 @@ ESKFFlow::ESKFFlow(const std::string &config_file_path, std::string data_file_pa
         : config_file_path_(config_file_path), data_file_path_(std::move(data_file_path)) {
     config_parameters_.LoadParameters(config_file_path);
 
-    gps_flow_ptr_ = std::make_shared<GPSTool>(config_parameters_.ref_longitude_, config_parameters_.ref_latitude_);
+    gps_flow_ptr_ = std::make_shared<GPSTool>(config_parameters_.ref_longitude_,
+                                              config_parameters_.ref_latitude_,
+                                              config_parameters_.ref_altitude_);
     eskf_ptr_ = std::make_shared<ErrorStateKalmanFilter>(config_parameters_);
 }
 
@@ -72,7 +74,7 @@ bool ESKFFlow::Run() {
             eskf_ptr_->Predict(curr_imu_data_);
             imu_data_buff_.pop_front();
 
-            if (!config_parameters_.only_prediction_){
+            if (!config_parameters_.only_prediction_) {
                 eskf_ptr_->Correct(curr_gps_data_);
             }
 
@@ -83,7 +85,7 @@ bool ESKFFlow::Run() {
                         curr_gps_data_.local_position_ned, curr_gps_data_.time);
 
             SaveTUMPose(gt_file, curr_imu_data_.true_q_enu,
-                        GPSTool::LLAToLocalNED(curr_imu_data_.true_t_enu), curr_imu_data_.time);
+                        gps_flow_ptr_->LLAToLocalNED(curr_imu_data_.true_t_enu), curr_imu_data_.time);
 
             gps_data_buff_.pop_front();
         }

@@ -62,7 +62,7 @@ bool ErrorStateKalmanFilter::Init(const GPSData &curr_gps_data, const IMUData &c
                                 Eigen::AngleAxisd(0 * kDegree2Radian, Eigen::Vector3d::UnitX());
 
     pose_.block<3, 3>(0, 0) = Q_init.toRotationMatrix();
-    pose_.block<3, 1>(0, 3) = GPSTool::LLAToLocalNED(curr_gps_data.true_position_lla);
+    pose_.block<3, 1>(0, 3) = curr_gps_data.local_position_ned;
 
     imu_data_buff_.clear();
     imu_data_buff_.push_back(curr_imu_data);

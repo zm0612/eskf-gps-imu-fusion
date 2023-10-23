@@ -5,6 +5,7 @@ earth_gravity: 9.794444352667332154
 # reference point
 ref_longitude: 120.401989
 ref_latitude: 31.508183
+ref_altitude: 0.0
 
 # kalman prediction process std
 position_error_prior_std: 1.0e-5

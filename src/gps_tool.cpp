@@ -9,10 +9,8 @@
 #include <iostream>
 #include <fstream>
 
-GeographicLib::LocalCartesian GPSTool::geo_converter_{31.508183, 120.401989, 0.0};
-
-GPSTool::GPSTool(double lon, double lat) {
-    GPSTool::geo_converter_.Reset(lat, lon, 0.0);
+GPSTool::GPSTool(double lon, double lat, double altitude) {
+    GPSTool::geo_converter_.Reset(lat, lon, altitude);
 }
 
 Eigen::Vector3d GPSTool::LLAToLocalNED(const Eigen::Vector3d &lla) {
