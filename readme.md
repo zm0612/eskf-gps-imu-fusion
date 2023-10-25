@@ -58,3 +58,16 @@ __推荐使用工具__: [evo](https://github.com/MichaelGrupp/evo)
 cd eskf-gps-imu-fusion/data
 evo_traj tum fused.txt gt.txt gps_measurement.txt -p
 ```
+
+## 6. 接入其他数据
+如果需要接入其他数据，您需要将您的数据格式进行整理，以符合本算法的需求，参考`data/raw_data`文件夹中的数据格式，并且至少要在`accel-0.csv`,`gps-0.csv`,`gps_time.csv`,`gyro-0.csv`,`time.csv`文件中填入你的IMU和GPS数据。
+
+**提示：**
+- IMU的加速度和角速度需要使用前右下坐标系；
+- GPS的数据按照：纬度、经度、高度填入，并且单位分别为度和米；
+- 采集和生成自己的数据时，请尽量从静止开始，并且尽量确保车辆在近水平面上运动。
+
+## 7. todo
+- [ ] 增加初始化时重力对齐
+- [ ] 增加初始化时bias估计
+- [ ] ……
