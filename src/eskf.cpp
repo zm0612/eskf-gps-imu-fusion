@@ -157,7 +157,7 @@ void ErrorStateKalmanFilter::UpdateOdomEstimation(const Eigen::Vector3d &w_in) {
     Eigen::Vector3d last_vel; // 上一时刻导航系下的速度
     ComputeVelocity(last_R, curr_R, last_imu_data, curr_imu_data, last_vel, curr_vel);
 
-    ComputePosition(last_vel, curr_vel, last_imu_data, curr_imu_data);
+    ComputePosition(last_R, curr_R, last_vel, curr_vel, last_imu_data, curr_imu_data);
 }
 
 Eigen::Vector3d ErrorStateKalmanFilter::ComputeDeltaRotation(const IMUData &imu_data_0, const IMUData &imu_data_1) {
@@ -237,13 +237,16 @@ Eigen::Vector3d ErrorStateKalmanFilter::ComputeUnbiasGyro(const Eigen::Vector3d 
     return gyro - gyro_bias_;
 }
 
-void ErrorStateKalmanFilter::ComputePosition(const Eigen::Vector3d &last_vel, const Eigen::Vector3d &curr_vel,
-                                             const IMUData &imu_data_0,
-                                             const IMUData &imu_data_1) {
+void ErrorStateKalmanFilter::ComputePosition(const Eigen::Matrix3d &R_0, const Eigen::Matrix3d &R_1,
+                                             const Eigen::Vector3d &last_vel, const Eigen::Vector3d &curr_vel,
+                                             const IMUData &imu_data_0, const IMUData &imu_data_1) {
+    Eigen::Vector3d unbias_accel_0 = R_0 * ComputeUnbiasAccel(imu_data_0.linear_accel) - g_;
+    Eigen::Vector3d unbias_accel_1 = R_1 * ComputeUnbiasAccel(imu_data_1.linear_accel) - g_;
+
     double delta_t = imu_data_1.time - imu_data_0.time;
 
     pose_.block<3, 1>(0, 3) += 0.5 * delta_t * (curr_vel + last_vel) +
-                               0.25 * (imu_data_0.linear_accel + imu_data_1.linear_accel) * delta_t * delta_t;
+                               0.25 * (unbias_accel_0 + unbias_accel_1) * delta_t * delta_t;
 }
 
 void ErrorStateKalmanFilter::ResetState() {

@@ -102,8 +102,9 @@ private:
      * @param last_vel
      * @return
      */
-    void ComputePosition(const Eigen::Vector3d &last_vel, const Eigen::Vector3d &curr_vel, const IMUData &imu_data_0,
-                         const IMUData &imu_data_1);
+    void ComputePosition(const Eigen::Matrix3d &R_0, const Eigen::Matrix3d &R_1,
+                         const Eigen::Vector3d &last_vel, const Eigen::Vector3d &curr_vel,
+                         const IMUData &imu_data_0, const IMUData &imu_data_1);
 
     /*!
      * 对误差进行滤波之后，需要在实际算出来的轨迹中，消除这部分误差
